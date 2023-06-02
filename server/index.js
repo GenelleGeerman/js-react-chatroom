@@ -1,29 +1,23 @@
 const WebS = require("ws");
 
 const wss = new WebS.Server({ port: 8080 });
-const connections = new Set();
+const listeners = new Set();
+const messages = [];
 
 wss.on("connection", (ws) => {
-  connections.add(ws);
-  console.log(`New Client Connected!`);
-  ws.on("message", (message) => {
-    if (typeof message.data !== "string") {
-      message.data = String(message); // Coerce to string
-    }
-    console.log(`Client has Sent: ${message}`);
-    SendToAllListeners(message.data, ws);
+  listeners.add(ws);
+  ws.on("close", () => {
+    listeners.delete(ws);
   });
 
-  ws.on("close", () => {
-    connections.delete(ws);
-    console.log("Client has Disconnected");
+  ws.on("message", (message) => {
+    messages.push(message.toLocaleString());
+    SendToAllListeners();
   });
+  SendToAllListeners();
 });
 
-function SendToAllListeners(message, ws) {
-  connections.forEach((c) => {
-    if (c !== ws) {
-      c.send(JSON.stringify(message));
-    }
-  });
+function SendToAllListeners() {
+  const messageString = JSON.stringify(messages);
+  listeners.forEach((ws) => ws.send(messageString));
 }
